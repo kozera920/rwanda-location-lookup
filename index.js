@@ -134,8 +134,23 @@ async function fetchJson(url, fetchImpl) {
   return response.json();
 }
 
-async function loadBundledGeoJsonFile(fileName, fetchImpl) {
-  const fileUrl = new URL(`./data/${fileName}`, import.meta.url);
+const BUNDLED_GEOJSON_URLS = {
+  districts: new URL("./data/districts.geojson", import.meta.url),
+  sectors: new URL("./data/sectors.geojson", import.meta.url),
+  cells: new URL("./data/cells.geojson", import.meta.url),
+  villages: new URL("./data/villages.geojson", import.meta.url),
+};
+
+function getBundledGeoJsonUrl(level) {
+  const url = BUNDLED_GEOJSON_URLS[level];
+  if (!url) {
+    throw new Error(`Unknown bundled GeoJSON level: ${String(level)}`);
+  }
+  return url;
+}
+
+async function loadBundledGeoJsonFile(level, fetchImpl) {
+  const fileUrl = getBundledGeoJsonUrl(level);
 
   if (fileUrl.protocol === "file:") {
     const moduleName = "node:fs/promises";
@@ -255,10 +270,10 @@ export async function loadBundledRwandaAdministrativeData({
 } = {}) {
   if (!bundledDataPromise) {
     bundledDataPromise = Promise.all([
-      loadBundledGeoJsonFile("districts.geojson", fetchImpl),
-      loadBundledGeoJsonFile("sectors.geojson", fetchImpl),
-      loadBundledGeoJsonFile("cells.geojson", fetchImpl),
-      loadBundledGeoJsonFile("villages.geojson", fetchImpl),
+      loadBundledGeoJsonFile("districts", fetchImpl),
+      loadBundledGeoJsonFile("sectors", fetchImpl),
+      loadBundledGeoJsonFile("cells", fetchImpl),
+      loadBundledGeoJsonFile("villages", fetchImpl),
     ]).then(([districts, sectors, cells, villages]) => {
       const data = { districts, sectors, cells, villages };
       validateRwandaAdministrativeData(data);
