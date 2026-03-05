@@ -12,6 +12,8 @@ Give the package a latitude and longitude, and it returns:
 
 Bundled boundary data is included, so developers can install and use it directly without downloading shapefiles.
 
+`lookup()` auto-loads bundled GeoJSON and now handles Vite optimized-deps paths without manual `public/geo` copy steps.
+
 ## Install
 
 ```bash

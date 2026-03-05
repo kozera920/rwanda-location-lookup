@@ -39,6 +39,7 @@ export type FetchLike = (
   ok: boolean;
   status: number;
   statusText: string;
+  text?: () => Promise<string>;
   json: () => Promise<any>;
 }>;
 

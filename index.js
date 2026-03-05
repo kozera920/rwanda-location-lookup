@@ -12,6 +12,8 @@ const SECTOR_ID_KEYS = ["Sect_ID", "SECT_ID", "Sector_ID", "sector_id"];
 const CELL_ID_KEYS = ["Cell_ID", "CELL_ID", "cell_id"];
 const VILLAGE_ID_KEYS = ["Village_ID", "VILLAGE_ID", "village_id"];
 const PROVINCE_ID_KEYS = ["Prov_ID", "PROV_ID", "province_id"];
+const PACKAGE_NAME = "rwanda-location-lookup";
+const PACKAGE_VERSION = "1.0.5";
 
 const bboxCache = new WeakMap();
 let bundledDataPromise = null;
@@ -131,7 +133,21 @@ async function fetchJson(url, fetchImpl) {
   if (!response.ok) {
     throw new Error(`Failed to load ${url} (${response.status} ${response.statusText})`);
   }
-  return response.json();
+
+  if (typeof response.text === "function") {
+    const raw = await response.text();
+    try {
+      return JSON.parse(raw);
+    } catch {
+      throw new Error(`Invalid JSON response from ${url}`);
+    }
+  }
+
+  if (typeof response.json === "function") {
+    return response.json();
+  }
+
+  throw new Error(`Unsupported fetch response shape for ${url}`);
 }
 
 const BUNDLED_GEOJSON_URLS = {
@@ -140,6 +156,12 @@ const BUNDLED_GEOJSON_URLS = {
   cells: new URL("./data/cells.geojson", import.meta.url),
   villages: new URL("./data/villages.geojson", import.meta.url),
 };
+const BUNDLED_GEOJSON_FILES = {
+  districts: "districts.geojson",
+  sectors: "sectors.geojson",
+  cells: "cells.geojson",
+  villages: "villages.geojson",
+};
 
 function getBundledGeoJsonUrl(level) {
   const url = BUNDLED_GEOJSON_URLS[level];
@@ -147,6 +169,32 @@ function getBundledGeoJsonUrl(level) {
     throw new Error(`Unknown bundled GeoJSON level: ${String(level)}`);
   }
   return url;
+}
+
+function getBundledGeoJsonFileName(level) {
+  const fileName = BUNDLED_GEOJSON_FILES[level];
+  if (!fileName) {
+    throw new Error(`Unknown bundled GeoJSON level: ${String(level)}`);
+  }
+  return fileName;
+}
+
+function getBundledGeoJsonFetchCandidates(level) {
+  const candidates = [];
+  const fileUrl = getBundledGeoJsonUrl(level);
+  const fileName = getBundledGeoJsonFileName(level);
+
+  candidates.push(fileUrl.toString());
+
+  const importMetaUrl = String(import.meta.url || "");
+  if (importMetaUrl.includes("/node_modules/.vite/deps/")) {
+    candidates.push(new URL(`../../${PACKAGE_NAME}/data/${fileName}`, import.meta.url).toString());
+  }
+
+  candidates.push(`/node_modules/${PACKAGE_NAME}/data/${fileName}`);
+  candidates.push(`https://cdn.jsdelivr.net/npm/${PACKAGE_NAME}@${PACKAGE_VERSION}/data/${fileName}`);
+
+  return [...new Set(candidates)];
 }
 
 async function loadBundledGeoJsonFile(level, fetchImpl) {
@@ -159,7 +207,19 @@ async function loadBundledGeoJsonFile(level, fetchImpl) {
     return JSON.parse(raw);
   }
 
-  return fetchJson(fileUrl.toString(), fetchImpl);
+  const candidates = getBundledGeoJsonFetchCandidates(level);
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchJson(candidate, fetchImpl);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const tried = candidates.join(", ");
+  throw new Error(`Failed to load bundled GeoJSON "${level}". Tried: ${tried}. ${lastError?.message || ""}`.trim());
 }
 
 function buildLookupResult({
