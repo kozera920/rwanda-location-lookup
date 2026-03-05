@@ -97,7 +97,7 @@ Repository: `https://github.com/kozera920/rwanda-location-lookup.git`
 1. Fork the repository on GitHub.
 2. Clone your fork:
 ```bash
-git clone https://github.com/<your-username>/rwanda-location-lookup.git
+git clone https://github.com/kozera920/rwanda-location-lookup.git
 cd rwanda-location-lookup
 ```
 3. Add upstream remote:
@@ -126,7 +126,8 @@ git push origin fixes/<short-fix-name>
 
 ## Author
 
-[Kozera Isaie](https://github.com/kozera920)
+Built and maintained by [Kozera Isaie](https://github.com/kozera920)
+Found a bug or have a suggestion? [Open an issue](https://github.com/kozera920/rwanda-location-lookup/issues).
 
 ## Note
 
