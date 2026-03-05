@@ -1,0 +1,42 @@
+{
+  "name": "rwanda-location-lookup",
+  "version": "1.0.2",
+  "description": "Turn map coordinates into Rwanda's Province, District, Sector, Cell and Village using bundled boundary data.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "data/*.geojson"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "rwanda",
+    "geojson",
+    "geospatial",
+    "reverse-geocoding",
+    "react"
+  ],
+  "license": "MIT",
+  "author": "Kozera Isaie",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kozera920/rwanda-location-lookup.git"
+  },
+  "homepage": "https://github.com/kozera920/rwanda-location-lookup#readme",
+  "bugs": {
+    "url": "https://github.com/kozera920/rwanda-location-lookup/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@turf/boolean-point-in-polygon": "^7.3.0",
+    "@turf/helpers": "^7.3.0"
+  }
+}
