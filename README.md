@@ -72,6 +72,12 @@ Example output:
 - `validateData(...)`
 : Validate the `districts/sectors/cells/villages` FeatureCollections.
 
+- `center(...)`
+: Async reverse lookup using bundled data. Provide hierarchy names/ids and get center coordinates.
+
+- `centerBy(...)`
+: Sync reverse lookup using already-loaded data.
+
 ## High-Performance Usage (Many Requests)
 
 ```js
@@ -81,6 +87,22 @@ const data = await loadData();
 
 const a = lookupByCoords({ latitude: -1.944, longitude: 30.062, data });
 const b = lookupByCoords({ lat: -1.95, lng: 30.06, data });
+```
+
+## Reverse Lookup (Hierarchy -> Center Coordinates)
+
+```js
+import { center } from "rwanda-location-lookup";
+
+const result = await center({
+  province: "Kigali City",
+  district: "Nyarugenge",
+  sector: "Nyarugenge",
+  cell: "Kiyovu",
+  village: "Ishema",
+});
+
+console.log(result.center); // { latitude: ..., longitude: ... }
 ```
 
 ## Use Your Own GeoJSON Source

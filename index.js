@@ -13,9 +13,19 @@ const CELL_ID_KEYS = ["Cell_ID", "CELL_ID", "cell_id"];
 const VILLAGE_ID_KEYS = ["Village_ID", "VILLAGE_ID", "village_id"];
 const PROVINCE_ID_KEYS = ["Prov_ID", "PROV_ID", "province_id"];
 const PACKAGE_NAME = "rwanda-location-lookup";
-const PACKAGE_VERSION = "1.0.5";
+const PACKAGE_VERSION = "1.1.1";
+const HIERARCHY_LEVELS = ["province", "district", "sector", "cell", "village"];
+const HIERARCHY_CONFIG = {
+  province: { nameKeys: PROVINCE_NAME_KEYS, idKeys: PROVINCE_ID_KEYS },
+  district: { nameKeys: DISTRICT_NAME_KEYS, idKeys: DISTRICT_ID_KEYS },
+  sector: { nameKeys: SECTOR_NAME_KEYS, idKeys: SECTOR_ID_KEYS },
+  cell: { nameKeys: CELL_NAME_KEYS, idKeys: CELL_ID_KEYS },
+  village: { nameKeys: VILLAGE_NAME_KEYS, idKeys: VILLAGE_ID_KEYS },
+};
+const PROVINCE_ALIAS_COLLECTIONS = ["sectors", "cells", "villages"];
 
 const bboxCache = new WeakMap();
+const provinceAliasIndexCache = new WeakMap();
 let bundledDataPromise = null;
 
 function isFeatureCollection(value) {
@@ -72,6 +82,79 @@ function getProvinceId(features) {
   return null;
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function normalizeComparable(value) {
+  if (!hasValue(value)) return null;
+  return String(value).trim().toLowerCase();
+}
+
+function matchesFeatureProperty(feature, keys, expectedValue) {
+  const expected = normalizeComparable(expectedValue);
+  if (expected === null) return true;
+
+  const props = feature?.properties || {};
+  for (const key of keys) {
+    const actual = normalizeComparable(props[key]);
+    if (actual !== null && actual === expected) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function buildProvinceAliasIndex(data) {
+  if (provinceAliasIndexCache.has(data)) {
+    return provinceAliasIndexCache.get(data);
+  }
+
+  const aliasToIds = new Map();
+
+  for (const collectionName of PROVINCE_ALIAS_COLLECTIONS) {
+    const collection = data?.[collectionName];
+    if (!isFeatureCollection(collection)) continue;
+
+    for (const feature of collection.features) {
+      const provinceId = normalizeComparable(getFeatureId(feature, PROVINCE_ID_KEYS));
+      const provinceName = normalizeComparable(getFeatureName(feature, PROVINCE_NAME_KEYS));
+      if (!provinceId || !provinceName) continue;
+
+      const ids = aliasToIds.get(provinceName) || new Set();
+      ids.add(provinceId);
+      aliasToIds.set(provinceName, ids);
+    }
+  }
+
+  provinceAliasIndexCache.set(data, aliasToIds);
+  return aliasToIds;
+}
+
+function matchesProvinceValue(feature, expectedValue, data) {
+  if (matchesFeatureProperty(feature, getHierarchyLevelKeys("province"), expectedValue)) {
+    return true;
+  }
+
+  const expected = normalizeComparable(expectedValue);
+  if (expected === null) return true;
+
+  const featureProvinceId = normalizeComparable(getFeatureId(feature, PROVINCE_ID_KEYS));
+  if (!featureProvinceId) return false;
+
+  const provinceAliasIndex = buildProvinceAliasIndex(data);
+  const matchingIds = provinceAliasIndex.get(expected);
+  return Boolean(matchingIds && matchingIds.has(featureProvinceId));
+}
+
+function matchesHierarchyValue(feature, level, expectedValue, data) {
+  if (level === "province") {
+    return matchesProvinceValue(feature, expectedValue, data);
+  }
+  return matchesFeatureProperty(feature, getHierarchyLevelKeys(level), expectedValue);
+}
+
 function forEachPosition(value, visit) {
   if (!Array.isArray(value)) return;
   if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
@@ -100,6 +183,32 @@ function getFeatureBbox(feature) {
   const bbox = Number.isFinite(minX) ? [minX, minY, maxX, maxY] : null;
   bboxCache.set(feature, bbox);
   return bbox;
+}
+
+function getFeaturesCombinedBbox(features) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const feature of features) {
+    const bbox = getFeatureBbox(feature);
+    if (!bbox) continue;
+    if (bbox[0] < minX) minX = bbox[0];
+    if (bbox[1] < minY) minY = bbox[1];
+    if (bbox[2] > maxX) maxX = bbox[2];
+    if (bbox[3] > maxY) maxY = bbox[3];
+  }
+
+  return Number.isFinite(minX) ? [minX, minY, maxX, maxY] : null;
+}
+
+function getBboxCenter(bbox) {
+  if (!bbox) return null;
+  return {
+    latitude: (bbox[1] + bbox[3]) / 2,
+    longitude: (bbox[0] + bbox[2]) / 2,
+  };
 }
 
 function isPointInBbox(longitude, latitude, bbox) {
@@ -246,6 +355,92 @@ function buildLookupResult({
   };
 }
 
+function getHierarchyFromFeature(feature) {
+  return {
+    province: getFeatureName(feature, PROVINCE_NAME_KEYS),
+    district: getFeatureName(feature, DISTRICT_NAME_KEYS),
+    sector: getFeatureName(feature, SECTOR_NAME_KEYS),
+    cell: getFeatureName(feature, CELL_NAME_KEYS),
+    village: getFeatureName(feature, VILLAGE_NAME_KEYS),
+    ids: {
+      province: getFeatureId(feature, PROVINCE_ID_KEYS),
+      district: getFeatureId(feature, DISTRICT_ID_KEYS),
+      sector: getFeatureId(feature, SECTOR_ID_KEYS),
+      cell: getFeatureId(feature, CELL_ID_KEYS),
+      village: getFeatureId(feature, VILLAGE_ID_KEYS),
+    },
+  };
+}
+
+function applyHierarchyOutputShape({ hierarchy, input, level }) {
+  const output = {
+    ...hierarchy,
+    ids: { ...hierarchy.ids },
+  };
+  const targetIndex = HIERARCHY_LEVELS.indexOf(level);
+
+  for (let index = 0; index <= targetIndex; index += 1) {
+    const currentLevel = HIERARCHY_LEVELS[index];
+    if (output[currentLevel] === null && hasValue(input[currentLevel])) {
+      output[currentLevel] = String(input[currentLevel]).trim();
+    }
+  }
+
+  for (let index = targetIndex + 1; index < HIERARCHY_LEVELS.length; index += 1) {
+    const currentLevel = HIERARCHY_LEVELS[index];
+    output[currentLevel] = null;
+    output.ids[currentLevel] = null;
+  }
+
+  return output;
+}
+
+function getTargetHierarchyLevel(input) {
+  for (let index = HIERARCHY_LEVELS.length - 1; index >= 0; index -= 1) {
+    const level = HIERARCHY_LEVELS[index];
+    if (hasValue(input[level])) return level;
+  }
+  throw new Error("Provide at least one hierarchy field: province, district, sector, cell, or village");
+}
+
+function getCollectionForHierarchyLevel(level, data) {
+  if (level === "province" || level === "sector") return data.sectors;
+  if (level === "district") return data.districts;
+  if (level === "cell") return data.cells;
+  return data.villages;
+}
+
+function getHierarchyLevelKeys(level) {
+  const config = HIERARCHY_CONFIG[level];
+  return [...config.nameKeys, ...config.idKeys];
+}
+
+function getHierarchyParentLevels(targetLevel) {
+  const targetLevelIndex = HIERARCHY_LEVELS.indexOf(targetLevel);
+  return HIERARCHY_LEVELS.slice(0, targetLevelIndex);
+}
+
+function getFeatureRepresentativePoint(feature) {
+  const bbox = getFeatureBbox(feature);
+  if (!bbox) return null;
+  const center = getBboxCenter(bbox);
+  return point([center.longitude, center.latitude]);
+}
+
+function isFeatureInsideAnyParent(feature, parentFeatures) {
+  const representativePoint = getFeatureRepresentativePoint(feature);
+  if (!representativePoint) return false;
+
+  const [longitude, latitude] = representativePoint.geometry.coordinates;
+  for (const parentFeature of parentFeatures) {
+    const parentBbox = getFeatureBbox(parentFeature);
+    if (parentBbox && !isPointInBbox(longitude, latitude, parentBbox)) continue;
+    if (booleanPointInPolygon(representativePoint, parentFeature)) return true;
+  }
+
+  return false;
+}
+
 export function validateRwandaAdministrativeData(data) {
   if (!data || typeof data !== "object") {
     throw new Error("data must be an object with districts, sectors, cells, villages");
@@ -363,6 +558,94 @@ export async function lookupRwandaAdministrativeHierarchy({
   });
 }
 
+export function centerByHierarchy({
+  province,
+  district,
+  sector,
+  cell,
+  village,
+  data,
+}) {
+  validateRwandaAdministrativeData(data);
+
+  const input = { province, district, sector, cell, village };
+  const level = getTargetHierarchyLevel(input);
+  const collection = getCollectionForHierarchyLevel(level, data);
+  let matches = collection.features.filter((feature) =>
+    matchesHierarchyValue(feature, level, input[level], data)
+  );
+
+  for (const parentLevel of getHierarchyParentLevels(level)) {
+    const expectedValue = input[parentLevel];
+    if (!hasValue(expectedValue) || matches.length === 0) continue;
+
+    const parentCollection = getCollectionForHierarchyLevel(parentLevel, data);
+    const parentMatches = parentCollection.features.filter((feature) =>
+      matchesHierarchyValue(feature, parentLevel, expectedValue, data)
+    );
+
+    if (parentMatches.length === 0) {
+      return null;
+    }
+
+    matches = matches.filter((feature) => {
+      if (matchesHierarchyValue(feature, parentLevel, expectedValue, data)) {
+        return true;
+      }
+      return isFeatureInsideAnyParent(feature, parentMatches);
+    });
+  }
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const bbox = getFeaturesCombinedBbox(matches);
+  const center = getBboxCenter(bbox);
+  if (!center || !bbox) {
+    return null;
+  }
+
+  const hierarchy = applyHierarchyOutputShape({
+    hierarchy: getHierarchyFromFeature(matches[0]),
+    input,
+    level,
+  });
+  return {
+    level,
+    matchCount: matches.length,
+    ...hierarchy,
+    center,
+    latitude: center.latitude,
+    longitude: center.longitude,
+    bbox: {
+      minLongitude: bbox[0],
+      minLatitude: bbox[1],
+      maxLongitude: bbox[2],
+      maxLatitude: bbox[3],
+    },
+  };
+}
+
+export async function centerLookup({
+  province,
+  district,
+  sector,
+  cell,
+  village,
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  const data = await loadBundledRwandaAdministrativeData({ fetchImpl });
+  return centerByHierarchy({
+    province,
+    district,
+    sector,
+    cell,
+    village,
+    data,
+  });
+}
+
 // Short API names (recommended).
 export const validateData = validateRwandaAdministrativeData;
 export const toPoint = createPointFeatureFromCoordinates;
@@ -371,6 +654,10 @@ export const lookupByCoords = lookupRwandaAdministrativeHierarchyByCoordinates;
 export const loadDataFromUrl = loadRwandaAdministrativeDataFromBaseUrl;
 export const loadData = loadBundledRwandaAdministrativeData;
 export const lookup = lookupRwandaAdministrativeHierarchy;
+export const centerBy = centerByHierarchy;
+export const center = centerLookup;
+export const reverseBy = centerByHierarchy;
+export const reverseLookup = centerLookup;
 
 // Backward-compatible aliases.
 export const validateRwandaAdminData = validateRwandaAdministrativeData;

@@ -1,6 +1,6 @@
 {
   "name": "rwanda-location-lookup",
-  "version": "1.0.5",
+  "version": "1.1.1",
   "description": "Turn map coordinates into Rwanda's Province, District, Sector, Cell and Village using bundled boundary data.",
   "type": "module",
   "main": "./index.js",
@@ -20,7 +20,12 @@
     "geojson",
     "geospatial",
     "reverse-geocoding",
-    "react"
+    "react",
+    "rwanda-location-lookup",
+    "rwanda-location",
+    "rwanda-geocoding",
+    "map-to-location",
+    "map-coordinates-to-location"
   ],
   "license": "MIT",
   "author": "Kozera Isaie",

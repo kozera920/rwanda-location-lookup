@@ -25,6 +25,43 @@ export type RwandaAdministrativeLookupResult = {
   };
 } | null;
 
+export type RwandaAdministrativeHierarchyInput = {
+  province?: string | number;
+  district?: string | number;
+  sector?: string | number;
+  cell?: string | number;
+  village?: string | number;
+};
+
+export type RwandaAdministrativeCenterResult = {
+  level: "province" | "district" | "sector" | "cell" | "village";
+  matchCount: number;
+  province: string | null;
+  district: string | null;
+  sector: string | null;
+  cell: string | null;
+  village: string | null;
+  ids: {
+    province: string | number | null;
+    district: string | number | null;
+    sector: string | number | null;
+    cell: string | number | null;
+    village: string | number | null;
+  };
+  center: {
+    latitude: number;
+    longitude: number;
+  };
+  latitude: number;
+  longitude: number;
+  bbox: {
+    minLongitude: number;
+    minLatitude: number;
+    maxLongitude: number;
+    maxLatitude: number;
+  };
+} | null;
+
 export type CoordinateInput = {
   latitude?: number;
   longitude?: number;
@@ -78,6 +115,18 @@ export function lookupRwandaAdministrativeHierarchy(
   }
 ): Promise<RwandaAdministrativeLookupResult>;
 
+export function centerByHierarchy(
+  input: RwandaAdministrativeHierarchyInput & {
+    data: RwandaAdministrativeData;
+  }
+): RwandaAdministrativeCenterResult;
+
+export function centerLookup(
+  input?: RwandaAdministrativeHierarchyInput & {
+    fetchImpl?: FetchLike;
+  }
+): Promise<RwandaAdministrativeCenterResult>;
+
 export const validateData: typeof validateRwandaAdministrativeData;
 export const toPoint: typeof createPointFeatureFromCoordinates;
 export const lookupByPoint: typeof lookupRwandaAdministrativeHierarchyByPoint;
@@ -85,6 +134,10 @@ export const lookupByCoords: typeof lookupRwandaAdministrativeHierarchyByCoordin
 export const loadDataFromUrl: typeof loadRwandaAdministrativeDataFromBaseUrl;
 export const loadData: typeof loadBundledRwandaAdministrativeData;
 export const lookup: typeof lookupRwandaAdministrativeHierarchy;
+export const centerBy: typeof centerByHierarchy;
+export const center: typeof centerLookup;
+export const reverseBy: typeof centerByHierarchy;
+export const reverseLookup: typeof centerLookup;
 
 export const validateRwandaAdminData: typeof validateRwandaAdministrativeData;
 export const createLookupPoint: typeof createPointFeatureFromCoordinates;
