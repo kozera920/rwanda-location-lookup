@@ -161,6 +161,7 @@ git push origin fixes/<short-fix-name>
 ## Author
 
 Built and maintained by [Kozera Isaie](https://github.com/kozera920)
+
 Found a bug or have a suggestion? [Open an issue](https://github.com/kozera920/rwanda-location-lookup/issues).
 
 ## Note
