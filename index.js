@@ -13,7 +13,7 @@ const CELL_ID_KEYS = ["Cell_ID", "CELL_ID", "cell_id"];
 const VILLAGE_ID_KEYS = ["Village_ID", "VILLAGE_ID", "village_id"];
 const PROVINCE_ID_KEYS = ["Prov_ID", "PROV_ID", "province_id"];
 const PACKAGE_NAME = "rwanda-location-lookup";
-const PACKAGE_VERSION = "1.1.1";
+const PACKAGE_VERSION = "1.1.2";
 const HIERARCHY_LEVELS = ["province", "district", "sector", "cell", "village"];
 const HIERARCHY_CONFIG = {
   province: { nameKeys: PROVINCE_NAME_KEYS, idKeys: PROVINCE_ID_KEYS },

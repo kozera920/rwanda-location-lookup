@@ -1,6 +1,6 @@
 {
   "name": "rwanda-location-lookup",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Turn map coordinates into Rwanda's Province, District, Sector, Cell and Village using bundled boundary data.",
   "type": "module",
   "main": "./index.js",
@@ -31,7 +31,7 @@
   "author": "Kozera Isaie",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kozera920/rwanda-location-lookup.git"
+    "url": "git+https://github.com/kozera920/rwanda-location-lookup.git"
   },
   "homepage": "https://github.com/kozera920/rwanda-location-lookup#readme",
   "bugs": {

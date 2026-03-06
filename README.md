@@ -20,6 +20,16 @@ Bundled boundary data is included, so developers can install and use it directly
 npm install rwanda-location-lookup
 ```
 
+## Demo
+
+Live demo: [rwanda-location-lookup.vercel.app](https://rwanda-location-lookup.vercel.app)
+
+Use it to test:
+
+- Coordinates to Province, District, Sector, Cell, Village
+- Current device location lookup
+- Reverse lookup from hierarchy to center coordinates
+
 ## Quick Start
 
 ```js
